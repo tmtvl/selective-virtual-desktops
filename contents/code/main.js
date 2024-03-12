@@ -7,15 +7,7 @@ var enabledDisplays = [];
  * Helper function. Is screen with (index) enabled for virtual desktops?
  * ========================================================================= */
 function isDisplayEnabled(output) {
-	const outputName = output.name;
-
-	print("selective-virtual-desktops: Looking up output: " + outputName);
-
-	const displayIndex = enabledDisplays.indexOf(output.name);
-
-	print("selective-virtual-desktops: Index is: " + displayIndex);
-
-	return displayIndex != -1;
+	return enabledDisplays.indexOf(output.name) != -1;
 }
 
 /* ============================================================================
@@ -36,8 +28,6 @@ function handleWindow(window) {
 		if (isDisplayEnabled(currentWindow.output)) {
 			/* Then unpin it. */
 			currentWindow.desktops = workspace.currentDesktop;
-			print("selective-virtual-desktops: Window "
-				  + currentWindow.internalId + " has been unpinned.");
 		}
 	} else {
 		/* Was window previously unpinned, and moved to a screen without
@@ -45,8 +35,6 @@ function handleWindow(window) {
 		if (!isDisplayEnabled(currentWindow.output)) {
 			/* Then pin it. */
 			currentWindow.desktops = [];
-			print("selective-virtual-desktops: Window"
-				  + currentWindow.internalId + "has been pinned.");
 		}
 	}
 }
@@ -56,9 +44,6 @@ function bind(window) {
 
 	window.outputChanged.connect(window, handleWindow);
 	window.desktopsChanged.connect(window, handleWindow);
-
-	print("selective-virtual-desktops: Window " + window.internalId
-		  + " has been bound.");
 }
 
 /* ============================================================================
@@ -66,21 +51,11 @@ function bind(window) {
  * ========================================================================= */
 function main() {
 	/* Handle configuration */
-	print("selective-virtual-desktops: Parsing configuration: "
-		  + readConfig('enabledDisplays', '').toString() + ".");
-
 	enabledDisplays = readConfig('enabledDisplays', '').toString().split(',');
 	options.configChanged.connect(function () {
 		enabledDisplays =
 			readConfig('enabledDisplays', '').toString().split(',');
 	});
-
-	print("selective-virtual-desktops: Loaded configuration.");
-
-	for (const enabledDisplay in enabledDisplays) {
-		print("selective-virtual-desktops: enabled display " + enabledDisplay
-			  + ".");
-	}
 
 	/* Handle existing clients */
 	workspace.windowList().forEach(bind);
