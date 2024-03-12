@@ -2,107 +2,91 @@
  * Running configuration
  * ========================================================================= */
 var enabledDisplays = [];
-var mapperObject = {};
 
 /* ============================================================================
  * Helper function. Is screen with (index) enabled for virtual desktops?
  * ========================================================================= */
-function isDisplayEnabled(index) {
-  return enabledDisplays.indexOf(mapperObject[index]) != -1 ? true : false;
+function isDisplayEnabled(output) {
+	const outputName = output.name;
+
+	print("selective-virtual-desktops: Looking up output: " + outputName);
+
+	const displayIndex = enabledDisplays.indexOf(output.name);
+
+	print("selective-virtual-desktops: Index is: " + displayIndex);
+
+	return displayIndex != -1;
 }
 
 /* ============================================================================
  * Handle pinning and unpinning of windows
  * ========================================================================= */
-function handleWindow(client) {
-  const thisClient = client || this;
+function handleWindow(window) {
+	const currentWindow = window || this;
 
-  /* Skip these windows */
-  if (thisClient.desktopWindow || thisClient.dock || (!thisClient.normalWindow && thisClient.skipTaskbar)) {
-    return;
-  }
+	/* Skip these windows. */
+	if (currentWindow.desktopWindow || currentWindow.dock
+		|| (!currentWindow.normalWindow && currentWindow.skipTaskbar)) {
+		return;
+	}
 
-  /* Was window previously pinned... */
-  if (thisClient.desktop == -1) {
-
-    /* ...and was moved to an screen with virtual desktops? */
-    if (isDisplayEnabled(thisClient.screen)) {
-
-      /* Then unpin it */
-      thisClient.desktop = workspace.currentDesktop;
-    }
-
-  } else {
-
-    /* Was window previously unpinned, and moved to a screen without virtual desktops? */
-    if (!isDisplayEnabled(thisClient.screen)) {
-
-      /* Then pin it */
-      thisClient.desktop = -1;
-    }
-  }
+	/* Was window previously pinned... */
+	if (currentWindow.desktops.length == 0) {
+		/* ...and was moved to a screen with virtual desktops? */
+		if (isDisplayEnabled(currentWindow.output)) {
+			/* Then unpin it. */
+			currentWindow.desktops = workspace.currentDesktop;
+			print("selective-virtual-desktops: Window "
+				  + currentWindow.internalId + " has been unpinned.");
+		}
+	} else {
+		/* Was window previously unpinned, and moved to a screen without
+		 * virtual desktops? */
+		if (!isDisplayEnabled(currentWindow.output)) {
+			/* Then pin it. */
+			currentWindow.desktops = [];
+			print("selective-virtual-desktops: Window"
+				  + currentWindow.internalId + "has been pinned.");
+		}
+	}
 }
 
-/* ============================================================================
- * Rebuild mapper object for mapping screen index to display names.
- *
- * NOTE: We use an object rather than an array just in case the screen indices
- * should not be consecutive [0..screens-1].
- * 
- * This is some rather ugly parsing, but it does the job...
- * ========================================================================= */
-function updateMapperObject() {
-  mapperObject = {};
+function bind(window) {
+	handleWindow(window);
 
-  /* Get info to parse */
-  workspace.supportInformation().split('Screens\n')[1]
-    .split('Screen ')
+	window.outputChanged.connect(window, handleWindow);
+	window.desktopsChanged.connect(window, handleWindow);
 
-    .forEach(function (line) {
-      const index = line.split(':\n')[0];
-
-      /* This must be a screen */
-      if (index == parseInt(index)) {
-        var name = line.split('Name: ')[1];
-
-        /* This is a screen with a name */
-        if (name) {
-          name = name.split('\n')[0];
-          mapperObject[index] = name;
-        }
-      }
-    });
-};
+	print("selective-virtual-desktops: Window " + window.internalId
+		  + " has been bound.");
+}
 
 /* ============================================================================
  * Kick the bucket!
  * ========================================================================= */
 function main() {
+	/* Handle configuration */
+	print("selective-virtual-desktops: Parsing configuration: "
+		  + readConfig('enabledDisplays', '').toString() + ".");
 
-  /* Handle configuration */
-  enabledDisplays = readConfig('enabledDisplays', '').toString().split(',');
-  options.configChanged.connect(function () {
-    enabledDisplays = readConfig('enabledDisplays', '').toString().split(',');
-  });
+	enabledDisplays = readConfig('enabledDisplays', '').toString().split(',');
+	options.configChanged.connect(function () {
+		enabledDisplays =
+			readConfig('enabledDisplays', '').toString().split(',');
+	});
 
+	print("selective-virtual-desktops: Loaded configuration.");
 
-  /* Make sure we have a valid mapper object from the start */
-  updateMapperObject();
+	for (const enabledDisplay in enabledDisplays) {
+		print("selective-virtual-desktops: enabled display " + enabledDisplay
+			  + ".");
+	}
 
-  /* Update mapper object on changes in number of screens */
-  workspace.numberScreensChanged.connect(updateMapperObject);
+	/* Handle existing clients */
+	workspace.windowList().forEach(bind);
 
-  /* Handle existing clients */
-  workspace.clientList().forEach(function (client) {
-    client.screenChanged.connect(client, handleWindow);
-    handleWindow(client)
-  });
-
-  /* Handle new windows */
-  workspace.clientAdded.connect(function (client) {
-    client.screenChanged.connect(client, handleWindow);
-    handleWindow(client)
-  });
+	/* Handle new windows */
+	workspace.windowAdded.connect(bind);
 }
 
 main();

@@ -1,0 +1,22 @@
+{
+  "KPackageStructure": "KWin/Script",
+  "KPlugin": {
+	"Name": "Selective Virtual Desktops",
+	"Description": "Enable virtual desktops only on named displays. IMPORTANT: See github repo if there is no configuration button!",
+	"Icon": "preferences-desktop-virtual",
+
+	"Authors": [
+	  {
+		"Email": "rel@xed.se",
+		"Name": "Thomas Hellström"
+	  }
+	],
+	"Id": "selective-virtual-desktops",
+	"Version": "1.0.4",
+	"License": "GPLv3",
+	"Website": "https://github.com/My-KWin-Scripts/selective-virtual-desktops"
+  },
+  "X-KDE-ConfigModule": "kwin/effects/configs/kcm_kwin4_genericscripted",
+  "X-Plasma-API": "javascript",
+  "X-Plasma-MainScript": "code/main.js"
+}
